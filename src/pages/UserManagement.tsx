@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Search, Shield, UserCheck, Eye, MoreHorizontal } from "lucide-react";
+import { Plus, Search, Shield, Eye, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,12 +34,10 @@ import { toast } from "sonner";
 function RoleBadge({ role }: { role: User["role"] }) {
   const styles: Record<string, string> = {
     admin: "bg-destructive/20 text-destructive border-destructive/30",
-    operator: "bg-warning/20 text-warning border-warning/30",
     viewer: "bg-primary/20 text-primary border-primary/30",
   };
   const icons: Record<string, React.ElementType> = {
     admin: Shield,
-    operator: UserCheck,
     viewer: Eye,
   };
   const Icon = icons[role];
@@ -103,7 +101,6 @@ const UserManagement = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="operator">Operator</SelectItem>
                     <SelectItem value="viewer">Viewer</SelectItem>
                   </SelectContent>
                 </Select>

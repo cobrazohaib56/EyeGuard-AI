@@ -10,6 +10,7 @@ function createWindow() {
     minWidth: 1024,
     minHeight: 640,
     show: false,
+    title: "EyeGuard AI",
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,

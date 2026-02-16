@@ -44,7 +44,7 @@ export function AppSidebar() {
         </div>
         {!collapsed && (
           <span className="text-sm font-semibold tracking-wide text-foreground">
-            SENTINEL AI
+            EyeGuard AI
           </span>
         )}
       </div>
@@ -84,7 +84,7 @@ export function AppSidebar() {
           {!collapsed && (
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium text-foreground truncate">Admin User</p>
-              <p className="text-xs text-muted-foreground truncate">admin@sentinel.ai</p>
+              <p className="text-xs text-muted-foreground truncate">admin@eyeguard.ai</p>
             </div>
           )}
         </div>

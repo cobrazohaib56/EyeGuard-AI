@@ -33,7 +33,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: "admin" | "operator" | "viewer";
+  role: "admin" | "viewer";
   status: "active" | "inactive";
   lastLogin: string;
   createdAt: string;
@@ -158,8 +158,8 @@ const userNames = [
 export const users: User[] = userNames.map((name, i) => ({
   id: `user-${String(i + 1).padStart(3, "0")}`,
   name,
-  email: `${name.toLowerCase().replace(" ", ".")}@sentinel.ai`,
-  role: (i === 0 ? "admin" : i < 4 ? "operator" : "viewer") as User["role"],
+  email: `${name.toLowerCase().replace(" ", ".")}@eyeguard.ai`,
+  role: (i === 0 ? "admin" : "viewer") as User["role"],
   status: (i < 7 ? "active" : "inactive") as User["status"],
   lastLogin: new Date(Date.now() - Math.random() * 7 * 86400000).toISOString(),
   createdAt: new Date(Date.now() - (30 + Math.random() * 300) * 86400000).toISOString(),
