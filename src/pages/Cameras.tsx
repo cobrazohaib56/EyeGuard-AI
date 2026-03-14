@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { FormEvent, useState } from "react";
 import {
   Plus,
   LayoutGrid,
@@ -41,7 +41,22 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { cameras as initialCameras, detectionModels, type Camera, type DetectionModel } from "@/data/mockData";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import {
+  detectionModels as mockDetectionModels,
+  type Camera,
+  type DetectionModel,
+} from "@/data/mockData";
+import {
+  createCamera,
+  deleteCamera as deleteCameraApi,
+  fetchCameras,
+  toggleCameraEnabled,
+} from "@/lib/cameraService";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
@@ -76,26 +91,103 @@ function StatusIndicator({ status, enabled }: { status: Camera["status"]; enable
 }
 
 const Cameras = () => {
+  const queryClient = useQueryClient();
   const [view, setView] = useState<"grid" | "list">("grid");
   const [addOpen, setAddOpen] = useState(false);
-  const [cameraList, setCameraList] = useState<Camera[]>(initialCameras);
+  const [cameraList, setCameraList] = useState<Camera[]>([]);
   const [newModel, setNewModel] = useState<DetectionModel>("theft-detection");
+  const [newName, setNewName] = useState("");
+  const [newLocation, setNewLocation] = useState("");
+  const [newRtspUrl, setNewRtspUrl] = useState("");
+
+  const { isLoading } = useQuery({
+    queryKey: ["cameras"],
+    queryFn: fetchCameras,
+    onSuccess: (data) => {
+      // Only keep cameras that have a valid id
+      setCameraList(data.filter((c) => c.id !== undefined && c.id !== null));
+    },
+    onError: () => {
+      toast.error("Failed to load cameras from server.");
+      setCameraList([]);
+    },
+  });
+
+  const addMutation = useMutation({
+    mutationFn: createCamera,
+    onSuccess: () => {
+      // Always refetch from backend so we pick up the canonical Camera
+      queryClient.invalidateQueries({ queryKey: ["cameras"] });
+      toast.success("Camera added");
+    },
+    onError: () => {
+      toast.error("Failed to add camera");
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await deleteCameraApi(id);
+      return id;
+    },
+    onSuccess: (id) => {
+      setCameraList((prev) => prev.filter((c) => c.id !== id));
+      queryClient.invalidateQueries({ queryKey: ["cameras"] });
+      toast.success("Camera removed");
+    },
+    onError: () => {
+      toast.error("Failed to remove camera");
+    },
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: toggleCameraEnabled,
+    onSuccess: (updated) => {
+      setCameraList((prev) =>
+        prev.map((c) => (c.id === updated.id ? updated : c))
+      );
+      queryClient.invalidateQueries({ queryKey: ["cameras"] });
+    },
+    onError: () => {
+      toast.error("Failed to update camera status");
+    },
+  });
 
   const handleDelete = (id: string) => {
-    setCameraList((prev) => prev.filter((c) => c.id !== id));
-    toast.success("Camera removed");
+    deleteMutation.mutate(id);
   };
 
   const handleToggle = (id: string) => {
-    setCameraList((prev) =>
-      prev.map((c) =>
-        c.id === id ? { ...c, enabled: !c.enabled, status: c.enabled ? "inactive" : "active" } : c
-      )
+    const cam = cameraList.find((c) => c.id === id);
+    if (!cam) return;
+    toggleMutation.mutate(cam);
+  };
+
+  const handleAdd = (e: FormEvent) => {
+    e.preventDefault();
+    if (!newName || !newLocation || !newRtspUrl) {
+      toast.error("Please fill in all fields");
+      return;
+    }
+    addMutation.mutate(
+      {
+        name: newName,
+        location: newLocation,
+        rtspUrl: newRtspUrl,
+      },
+      {
+        onSuccess: () => {
+          setAddOpen(false);
+          setNewName("");
+          setNewLocation("");
+          setNewRtspUrl("");
+        },
+      }
     );
   };
 
   const modelLabel = (model: DetectionModel) =>
-    detectionModels.find((m) => m.value === model)?.label || model;
+    mockDetectionModels.find((m) => m.value === model)?.label || model;
 
   return (
     <div className="space-y-6">
@@ -103,7 +195,7 @@ const Cameras = () => {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Camera Management</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {cameraList.length} cameras configured
+            {isLoading ? "Loading cameras..." : `${cameraList.length} cameras configured`}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -132,27 +224,32 @@ const Cameras = () => {
               <DialogHeader>
                 <DialogTitle>Add New Camera</DialogTitle>
               </DialogHeader>
-              <form
-                className="space-y-4"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  setAddOpen(false);
-                  toast.success("Camera added");
-                }}
-              >
+              <form className="space-y-4" onSubmit={handleAdd}>
                 <div className="space-y-2">
                   <Label className="text-xs uppercase tracking-wider">Camera Name</Label>
-                  <Input placeholder="CAM-029" className="bg-secondary border-border" />
+                  <Input
+                    placeholder="CAM-029"
+                    className="bg-secondary border-border"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs uppercase tracking-wider">Location</Label>
-                  <Input placeholder="e.g. Main Entrance" className="bg-secondary border-border" />
+                  <Input
+                    placeholder="e.g. Main Entrance"
+                    className="bg-secondary border-border"
+                    value={newLocation}
+                    onChange={(e) => setNewLocation(e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs uppercase tracking-wider">RTSP URL</Label>
                   <Input
                     placeholder="rtsp://192.168.1.x:554/stream"
                     className="bg-secondary border-border font-mono text-xs"
+                    value={newRtspUrl}
+                    onChange={(e) => setNewRtspUrl(e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
@@ -164,7 +261,7 @@ const Cameras = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {detectionModels.map((m) => (
+                      {mockDetectionModels.map((m) => (
                         <SelectItem key={m.value} value={m.value}>
                           <div className="flex flex-col">
                             <span>{m.label}</span>

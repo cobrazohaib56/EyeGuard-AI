@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { apiClient } from "@/lib/apiClient";
+import { toast } from "sonner";
 
 const Login = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -13,9 +15,18 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    navigate("/dashboard");
+    try {
+      const res = await apiClient.post<{ token: string }>("/api-email-token-auth/", {
+        email,
+        password,
+      });
+      localStorage.setItem("authToken", res.data.token);
+      navigate("/dashboard");
+    } catch (err) {
+      toast.error("Invalid credentials or server error");
+    }
   };
 
   return (
